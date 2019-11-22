@@ -1,0 +1,15 @@
+
+	I'm just writing a program to do a lot of things with FASTQ files in order to learn python and to demonstrate knowledge of bioinformatic data formats. 
+
+
+	A) program to test to see if there are any malformed reads in the FASTA / FASTQ file! This tests for the following:
+		1) The number of bases != the quality scores
+		2) No bases
+		3) missing 1 of the 4 lines
+		4) truncated file (same as above but file ends there...)
+
+	The program can then remove any of the reads that are malformed, if this is possible. Truncated files just return everything before the file was trunctated. 
+
+
+	B) Output summary statistics (Same as the program "FASTQC", basically, but make the graphs in python).
+
