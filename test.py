@@ -6,6 +6,13 @@ This is a big 'ol
 multi-line comment yeah!
 '''
 
-file = open("C1.1.fastq")
-print(file.read())
+
+
+def check_nucleotides(line):
+        acceptable = ['A', 'C', 'T', 'G', 'N']
+        for i in line:
+		if i not in acceptable:
+			print ("ERROR!")
+
+
 
