@@ -1,10 +1,11 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """
 I have just now begun to learn python. It seems fun and straightforward. 
 
 Friday: implemented parameters and usage statement etc. Wrote function to check to see if the fastq files are truncated and for general malformation. Good start.
 
+Saturday: corrected the error in the check_correct_nucleotides script, started making file input more flexible. Started writing some of the section to summarize quality in graph form, starting with what will probably the easiest one.
 
 """
 
@@ -19,25 +20,62 @@ Friday: implemented parameters and usage statement etc. Wrote function to check 
 #  Usage: fastq_looker.py 
 #
 #############################################
-
 import 	sys
 import	re
 import	argparse
+import  numpy as np
+#############################################
 
 
+
+
+#############################################
+##	  Summary statistics go here!
+#############################################
+#This is to summarize the bases where Ns were found.
+#I am assuming that you aren't getting reads that are longer than 500 bp.
+def summarize_ns(file_name):
+	N_count = np.zeros((500,), dtype=int)
+	Max_length = 0;
+	i = 0
+	file = open(file_name, 'r')
+	for line in file:
+		if i == 1:
+			j = 0
+			for char in line:
+				if char == "N":
+					N_count[j] += 1
+				j += 1
+			if j > Max_length:
+				Max_length = j
+		if i == 3:
+			i = -1
+		i += 1	
+	for p in N_count:
+		print(p)
+
+
+
+#############################################
+## 	      quality check here
+#############################################
 def check_correct_nucleotides(line):
 	acceptable = ['A', 'C', 'T', 'G', 'N']
+	line = line.rstrip()
 	for i in line:
 		if i not in acceptable:
-			print i
 			return (False)
 	return (True)
 
-def check_truncated(f_file):
+#this function checks to see if there is any sort of truncation:
+#makes sure that you have lines with standard format, that qual line == seq line
+#and that the sequence is only nucleotides or N.
+def check_truncated(file_name):
+	file = open(file_name, 'r')
 	i = 0;
 	line_1 = re.compile('^@.*')
 	line_3 = re.compile('^\+')
-	for line in f_file:
+	for line in file:
 		if i == 0 and not line_1.match(line):
 			return (True)
 		if i == 1:
@@ -75,26 +113,30 @@ def main():
 	parser.add_argument('-f2', '--reverse', dest='fastq_2', help='The path to the second fastq', required=False)
 	args = parser.parse_args()
 
-	forward_file = open(args.fastq_1, 'r')
+	files = []
+	forward_file = args.fastq_1 #open(args.fastq_1, 'r')
+	files.append(forward_file)
 	if args.fastq_2:
-		reverse_file = open(args.fastq_2, 'r')
-
-	run_checks(forward_file, reverse_file)
-	#run_graphs(forward_file, reverse_file)
-
-
-
-def run_checks(forward_file, reverse_file):
-	if check_truncated(forward_file):
-		print ("The first file was truncated in some way!!!")
-	if (reverse_file):
-		if check_truncated(reverse_file):
-			print ("The first second file was truncated in some way!!!")
+		reverse_file = args.fastq_2 #open(args.fastq_2, 'r')
+		files.append(reverse_file)
+	run_checks(files)
+	run_graphs(files)
 
 
-#def run_graphs():
+def run_checks(files):
+	for file in files:
+		if check_truncated(file):
+			print ("%s was truncated in some way!!!" % file)
+
+
+def run_graphs(files):
+	for file in files:
+		summarize_ns(file)
 
 
 
+######################################
+#  Run Main!
+######################################
 if __name__ == '__main__':
 	main()
