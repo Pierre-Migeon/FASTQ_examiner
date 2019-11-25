@@ -1,5 +1,8 @@
 
 	I'm just writing a program to do a lot of things with FASTQ files in order to learn python and to demonstrate knowledge of bioinformatic data formats. 
+	
+	For output options, you should be able to specify an output path, otherwise defaults to same place as the fastq files.
+You should be doing everything with absolute paths so that the program can be run anywhere (as in, added to the $PATH variable). Finally, it'll be easiest to produce the reformatted (unwrapped, truncated entries removed) files regardless for running analysis of on plots, and then removing these if the user doesn't specify that they want reformatted entries.
 
 
 	A) program to test to see if there are any malformed reads in the FASTA / FASTQ file! This tests for the following:
