@@ -9,6 +9,8 @@ Saturday: corrected the error in the check_correct_nucleotides script, started m
 
 Sunday: Added check for wrapped lines.
 
+Monday: Added basic format correctness check. Have near complete unwrapper function.
+
 """
 
 #############################################
@@ -109,13 +111,22 @@ def unwrap(file_name):
 	line_0 = re.compile('^@')
 	line_2 = re.compile('^\+')
 	for line in file:
-		if i == 0:
 		if i == 3:
-			#cat together the line.
-		if i == 2 and line_3.match(line):
+			
+		if i == 2 and line_2.match(line):
+			growing_line = ""
 			i += 1
-'''		
-				
+		if i == 1:
+			if not line_2.match(line):
+				growing_line += line.rstrip();
+			else :
+				i += 1
+		if i == 0 and line_0.match(line):
+			if growing_line
+				#write it here
+			growing_line = ""
+			i += 1;
+'''				
 
 #############################################
 #  Check to see if the file is wrapped
@@ -166,9 +177,48 @@ def run_checks(files):
         for file in files:
 		if check_wrapped(file):
 			print ("%s included wrapped text!!!" % file)
-			#unwrap(file)
-                elif check_truncated(file):
+                if check_truncated(file):
                         print ("%s was truncated in some way!!!" % file)
+
+
+####################################
+# Check basic format correctness
+####################################
+
+def third_line(file_name):
+	line_3 = re.compile('^\+')
+	file = open(file_name, 'r')
+	for i in range(0, 3):
+        	line = file.readline()
+	file.close()
+	return (line_3.match(line))
+
+def legal_seq(file_name):
+	file = open(file_name, 'r')
+	for i in range(0, 2):
+		line = file.readline()
+	file.close()
+	return (check_correct_nucleotides(line))
+
+def starts_at(file_name):
+	file = open(file_name)
+	header = re.compile('^@')
+	line = file.readline()
+	file.close()
+	return (header.match(line))
+
+#run the above functions, check basic format correct.
+def is_it_fastq(files):
+	for file in files:
+		if not starts_at(file):
+			print("First entry in %s doesn't start with a @. %s might not actually be FASTQ format. Exiting." % (os.path.basename(file), os.path.basename(file)))
+			sys.exit(0)
+		if not legal_seq(file):
+			print("The first entry in %s includes non-standard bases (something besides ATCGNU). %s might not actyally be FASTQ format. Exiting." % (os.path.basename(file), os.path.basename(file)))
+                        sys.exit(0)
+		if not third_line(file):
+			print("The first entry in %s is missing the '+' line. %s might not actyally be FASTQ format. Exiting." % (os.path.basename(file), os.path.basename(file)))
+			sys.exit(0)
 
 def main():
 #################################
@@ -200,11 +250,12 @@ def main():
 	if args.fastq_2:
 		reverse_file = args.fastq_2 
 		files.append(reverse_file)
+	#Verify correct format:
+	is_it_fastq(files)
 	#Run QC checks
 	run_checks(files)
 	#Run graphs and summary statistics
 	run_graphs(files, args.plot_num)
-
 
 ######################################
 #  Run Main!
