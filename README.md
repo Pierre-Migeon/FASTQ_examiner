@@ -1,7 +1,5 @@
 # FASTQ_examiner
-A tool to check validity of FASTQ files, correct if necessary, and output summary graphs and statistics for these
-
-I am building this project in order to learn python.
+##A tool to check validity of FASTQ files, correct if necessary, and output summary graphs and statistics for these
 
 
 I used this tool to quickly make some random fastq files to play with during development:

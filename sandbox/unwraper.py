@@ -1,6 +1,6 @@
 
 
-
+import os
 import sys
 import re
 
@@ -18,7 +18,8 @@ def unwrap(file_name):
 	line_2 = re.compile('^\+|^\+header')
 	header = re.compile(header)
 	file = open(file_name, 'r')
-	out = open("./out/file_name_unwrapped.fastq", 'w')
+	out_path = "./out/" + os.path.splitext(os.path.basename(file_name))[0] + "unwrapped.fastq"
+	out = open(out_path, 'w')
         growing_line = ""
 	i = 0
 	for line in file:
