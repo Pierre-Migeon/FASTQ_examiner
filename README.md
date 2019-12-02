@@ -1,5 +1,5 @@
 # FASTQ_examiner
-##A tool to check validity of FASTQ files, correct if necessary, and output summary graphs and statistics for these
+## A tool to check validity of FASTQ files, correct if necessary, and output summary graphs and statistics for these
 
 
 I used this tool to quickly make some random fastq files to play with during development:
