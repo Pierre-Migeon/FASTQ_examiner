@@ -54,54 +54,99 @@ def summarize_ns(file_name, plot_number):
 			i = -1
 		i += 1
 	if plot_number:
-		plt.plot(100 * (N_count[0:max_length] / N_count[750:max_length + 750]), color = 'green', linestyle='dashed')
+		plt.plot(100 * (N_count[0:max_length] / N_count[750:max_length + 750]), color = 'blue') #linestyle='dashed')
 		plt.xlabel("Position in Read")
 		plt.ylabel("Percent N")
 		plt.title("%%N by length of read for %s" % os.path.basename(file_name))
+		plt.grid()
 		plt.show()
 	return(N_count)
 
 def plot_total_ns(N_count):
 	max_length = N_count.argmin()
-	plt.plot(100 * (N_count[0:max_length] / N_count[750:max_length + 750]), color = 'green', linestyle='dashed')
+	plt.plot(100 * (N_count[0:max_length] / N_count[750:max_length + 750]), color = 'blue') #, linestyle='dashed')
 	plt.xlabel("Position in Read")
 	plt.ylabel("Percent N")
 	plt.title("%N by length of read cumulative for all files")
+	plt.grid()
 	plt.show()
 
 def plot_number_of_x_length(lens, max_len, file_name):
 	plt.xlabel("Length of Read")
         plt.ylabel("Number of Reads")
-	plt.plot(lens[0:max_len + 2], color = 'green', linestyle='dashed')
+	plt.plot(lens[0:max_len + 2], color = 'blue') #, linestyle='dash_dot')
 	plt.title("Read Length Distribution for %s" % os.path.basename(file_name))
+	plt.grid()
 	plt.show()
 
 #This function plots the length distribution for the reads.
-def number_of_x_length(struct, file_plots):
+def number_of_x_length(seqs, file_plots):
 	t_lens = np.zeros((750,), dtype=int)
 	max_len = 0;
-	for i in range(len(struct)):
+	for i in range(len(seqs)):
 		lens = np.zeros((750,), dtype=int)
-		for j in range(len(struct[i])):
-			length = len(struct[i][j]["seq"])
+		for j in range(len(seqs[i])):
+			length = len(seqs[i][j]["seq"])
 			lens[length] += 1
 			if length > max_len:
 				max_len = length
 		t_lens += lens
 		if (file_plots):
-			plot_number_of_x_length(lens, max_len, struct[i][0]["filename"])
+			plot_number_of_x_length(lens, max_len, seqs[i][0]["filename"])
 	plot_number_of_x_length(t_lens, max_len, "All Files")
+
+
+def plot_percent_gc(nucleotides, max_len, file_name):
+	sum = np.zeros((max_len,), dtype=float)
+	sum = nucleotides["A"] + nucleotides["T"] + nucleotides["C"] + nucleotides["G"] + nucleotides["N"]
+	for letter in nucleotides:
+		nucleotides[letter] /= sum
+	print nucleotides
+
+	plt.xlabel("Position in Read")
+	plt.ylabel("Proportion of Base")
+	plt.title("Proportion of Each Base by Position in Read in %s" % os.path.basename(file_name))
+	plt.plot(nucleotides["A"][0:max_len], color = 'red')
+	plt.plot(nucleotides["T"][0:max_len], color = 'blue')
+	plt.plot(nucleotides["C"][0:max_len], color = 'yellow')
+	plt.plot(nucleotides["G"][0:max_len], color = 'green')
+	plt.plot(nucleotides["N"][0:max_len], color = 'orange')
+	plt.legend()
+	plt.grid()
+	plt.show()
+
+
+# Might consider converting all characters to 
+# uppercase during intake of files, in case you 
+# run into fastq files with lowercase, would 
+# break this graph. Unlikely edge case but still
+def percent_gc(seqs, file_plots):
+	nucleotides = []
+	max_len = 0
+	for i in (range(len(seqs))):
+		nucleotides.append({"A" : np.array([], 'f'), "T" : np.array([], 'f'), "C" : np.array([], 'f'), "G" : np.array([], 'f'), "N" : np.array([], 'f')})
+		for j in (range(len(seqs[i]))):
+			x = 0
+			for letter in seqs[i][j]["seq"]:
+				while x not in range(len(nucleotides[i][letter])):
+					nucleotides[i][letter] = np.append(nucleotides[i][letter], 0)
+				nucleotides[i][letter][x] += 1
+				x += 1
+				if x > max_len:
+					max_len = x
+		if (file_plots):
+			plot_percent_gc(nucleotides[i], max_len, seqs[i][0]["filename"])
 
 ######################################
 #  	Run Quality Graphs
 ######################################
-def run_graphs(files, print_num, struct):
+def run_graphs(files, print_num, seqs):
         total_ns = np.zeros((1500,), dtype=float)
         for file in files:
                 total_ns += summarize_ns(file, print_num)
         plot_total_ns(total_ns)
-	#plot_percent_gc(struct)
-	number_of_x_length(struct, print_num)
+	percent_gc(seqs, print_num)
+	number_of_x_length(seqs, print_num)
 	#plot_percent_basepair_by_base()
 	
 
@@ -182,6 +227,7 @@ def check_wrapped(file_name):
 #this function checks to see if there is any sort of truncation:
 #makes sure that you have lines with standard format, that qual line == seq line
 #and that the sequence is only nucleotides or N.
+'''
 def check_truncated(file_name):
 	file = open(file_name, 'r')
 	i = 0;
@@ -202,15 +248,40 @@ def check_truncated(file_name):
 			i = -1
 		i += 1
 	return (False)
+'''
+
+def check_truncated(seqs):
+	line_0 = re.compile('^@.*')
+	line_2 = re.compile('^\+')
+	flag = False;
+	for i in range(len(seqs)):
+		for j in range(len(seqs[i])):
+			if not seqs[i][j]["header"]: # or not line_0.match(seqs[i][j]["header"]):
+				print seqs[i][j]
+				seqs[i].remove(seqs[i][j])
+				flag = True
+			elif not check_correct_nucleotides(seqs[i][j]["seq"]):
+				print seqs[i][j]
+				seqs[i].remove(seqs[i][j])
+				flag = True
+			elif not line_2.match(seqs[i][j]["plus"]):
+				print seqs[i][j]
+				seqs[i].remove(seqs[i][j])
+				flag = True
+			elif not len(seqs[i][j]["seq"]) == len(seqs[i][j]["qual"]):
+				print seqs[i][j]
+				seqs[i].remove(seqs[i][j])
+				flag = True	
+	return (flag);
 
 #################################
 # Run QC checks:
 #################################
-def run_checks(files):
+def run_checks(files, seqs):
 	for file in files:
 		if check_wrapped(file):
 			print ("%s included wrapped text. The file will automatically be unwrapped" % file)
-		if check_truncated(file):
+		if check_truncated(seqs):
                 	print ("%s was truncated in some way. Truncated entries will automatically be removed" % file)
 
 
@@ -226,8 +297,6 @@ def put_in_struct(file_name):
 	file = open(file_name, 'r')
 	for line in file:
 		if header.match(line):
-			if j > -1 and "qual" in lines[j]:
-				lines[j]["qual"] += "\n"
 			lines.append({"header" : line})
 			if j == -1:
 				lines[0]["filename"] = file_name
@@ -236,7 +305,7 @@ def put_in_struct(file_name):
 		if i == 1 and check_correct_nucleotides(line):
 			if "seq" in lines[j]:
 				lines[j]["seq"] += line.rstrip()
-			else: 
+			else:
 				lines[j]["seq"] = line.rstrip()
 		if i == 2:
 			if "qual" in lines[j]:
@@ -244,8 +313,6 @@ def put_in_struct(file_name):
 			else:
 				lines[j]["qual"] = line.rstrip()
 		if i == 1 and non_seq.match(line):
-			if "seq" in lines[j]:
-				lines[j]["seq"] += "\n"
 			lines[j]["plus"] = line;
 			i += 1
 	return (lines)
@@ -329,7 +396,7 @@ def main():
 	for file in files:
 		seqs.append(put_in_struct(file))
 	#Run QC checks
-	run_checks(files)
+	run_checks(files, seqs)
 	#Run graphs and summary statistics
 	run_graphs(files, args.plot_num, seqs)
 
