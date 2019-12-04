@@ -110,8 +110,7 @@ def plot_percent_gc(nucleotides, max_len, file_name):
 	plt.plot(nucleotides["T"][0:max_len], color = 'blue')
 	plt.plot(nucleotides["C"][0:max_len], color = 'yellow')
 	plt.plot(nucleotides["G"][0:max_len], color = 'green')
-	plt.plot(nucleotides["N"][0:max_len], color = 'orange')
-	plt.legend()
+	plt.legend(["A", "T", "C", "G"])
 	plt.grid()
 	plt.show()
 
