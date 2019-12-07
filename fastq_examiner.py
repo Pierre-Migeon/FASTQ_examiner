@@ -3,14 +3,6 @@
 """
 I have just now begun to learn python. It seems fun and straightforward. 
 
-Friday: implemented parameters and usage statement etc. Wrote function to check to see if the fastq files are truncated and for general malformation. Good start.
-
-Saturday: corrected the error in the check_correct_nucleotides script, started making file input more flexible. Started writing some of the section to summarize quality in graph form, starting with what will probably the easiest one.
-
-Sunday: Added check for wrapped lines.
-
-Monday: Added basic format correctness check. Have near complete unwrapper function.
-
 """
 
 #############################################
@@ -95,14 +87,17 @@ def number_of_x_length(seqs, file_plots):
 			plot_number_of_x_length(lens, max_len, seqs[i][0]["filename"])
 	plot_number_of_x_length(t_lens, max_len, "All Files")
 
+def polish_arrays(nucleotides, max_len):
+	for letter in nucleotides:
+		while len(nucleotides[letter]) < max_len:
+			nucleotides[letter] = np.append(nucleotides[letter], 0)
 
 def plot_percent_gc(nucleotides, max_len, file_name):
 	sum = np.zeros((max_len,), dtype=float)
+	polish_arrays(nucleotides, max_len)
 	sum = nucleotides["A"] + nucleotides["T"] + nucleotides["C"] + nucleotides["G"] + nucleotides["N"]
 	for letter in nucleotides:
 		nucleotides[letter] /= sum
-	print nucleotides
-
 	plt.xlabel("Position in Read")
 	plt.ylabel("Proportion of Base")
 	plt.title("Proportion of Each Base by Position in Read in %s" % os.path.basename(file_name))
@@ -114,11 +109,11 @@ def plot_percent_gc(nucleotides, max_len, file_name):
 	plt.grid()
 	plt.show()
 
-
 # Might consider converting all characters to 
-# uppercase during intake of files, in case you 
-# run into fastq files with lowercase, would 
+# uppercase during intake of files, in case you
+# run into fastq files with lowercase, would
 # break this graph. Unlikely edge case but still
+# You need to do one for the files cumulatively here as well.
 def percent_gc(seqs, file_plots):
 	nucleotides = []
 	max_len = 0
@@ -136,18 +131,56 @@ def percent_gc(seqs, file_plots):
 		if (file_plots):
 			plot_percent_gc(nucleotides[i], max_len, seqs[i][0]["filename"])
 
+
+def plot_quality_by_base(sum):
+	plt.plot(sum)
+
+
+def average_qual(qual, encoding):
+	len = len(qual)
+	qual = 0
+	if encoding == 33:
+		base = ord('!')
+	else:
+		base = ord('@')
+	for char in qual:
+		qual += ord(char) - ord('!')
+	return (qual / len)
+
+def get_encoding(seqs):
+                min = '~'
+                max = '!'
+                for entry in range(len(seqs)):
+                        for char in seqs[entry]["qual"]:
+                                if char < min:
+                                        min = char
+                                if char > max:
+                                        max = char
+                if min < ':' or max < k:
+			return (33)
+                elif max > k:
+                        return (64)
+
+def quality_by_base(seqs, print_num):
+	sum = np.zeros((45,), dtype=int)
+	for file in range(len(seqs)):
+		encoding = get_encoding(seqs["file"])
+		for entry in range(len(seqs[file])):
+			sum[average_qual(seqs[file][entry]["qual"]), encoding] += 1
+		plot_quality_by_base(sum)
+
 ######################################
 #  	Run Quality Graphs
 ######################################
 def run_graphs(files, print_num, seqs):
-        total_ns = np.zeros((1500,), dtype=float)
-        for file in files:
-                total_ns += summarize_ns(file, print_num)
+	total_ns = np.zeros((1500,), dtype=float)
+	for file in files:
+		total_ns += summarize_ns(file, print_num)
         plot_total_ns(total_ns)
+	#rename this function- percent by base
 	percent_gc(seqs, print_num)
 	number_of_x_length(seqs, print_num)
-	#plot_percent_basepair_by_base()
-	
+	quality_by_base(seqs, print_num)
 
 #############################################
 ## 	      quality check here
@@ -172,15 +205,32 @@ def check_correct_nucleotides(line):
 #############################################
 #  Unwrap the files 
 #############################################
+#need to update this so that it crawls through a set of 4 guarenteed non-truncated entries.
+#Otherwise, trunctation early in the file will throw everything off.
 def get_header(file_name):
+	header = re.compile('^@')
+	plus = re.compile('^\+')
 	file = open(file_name, 'r')
-	header_line = re.compile('^@.*:.*:.*:')
+	first_line = file.readline()
+	if len(first_line) < 2:
+		print "Minimal information stored in the header line... Possible bugs ahead. You may want to reformat headerlines."
+	seq_line = file.readline()
+	x = 0
+	if len(seq_line) == len(first_line):
+		x = 1
+	i = 2
+	last_line = seq_line
 	for line in file:
-		if header_line.match(line):
-			header = line[0:line.index(':')]
-			file.close()
-			return (header)
+		if header.match(line) and not plus.match(last_line):
+			if len(line) != len(seq_line) or x:
+				if len(os.path.commonprefix([first_line, line])) > 1: 
+					first_line = os.path.commonprefix([first_line, line])
+		last_line = line
+		i += 1
+	file.close()
+	return (first_line)
 
+'''
 def unwrap(file_name):
 	header = get_header(file_name)
 	line_2 = re.compile('^\+|^\+header')
@@ -204,6 +254,7 @@ def unwrap(file_name):
 	out.write("\n")
 	file.close()
 	out.close()
+'''
 
 #############################################
 #  Check to see if the file is wrapped
@@ -249,29 +300,50 @@ def check_truncated(file_name):
 	return (False)
 '''
 
+def as_read(dict_entry):
+	str = ""
+	if "header" in dict_entry:
+		str += dict_entry["header"]
+	if "seq" in dict_entry:
+		str += dict_entry["seq"]
+		str += "\n"
+	if "plus" in dict_entry:
+		str += dict_entry["plus"]
+        if "qual" in dict_entry:
+                str += dict_entry["qual"]
+		str += "\n"
+	return (str)
+
 def check_truncated(seqs):
 	line_0 = re.compile('^@.*')
 	line_2 = re.compile('^\+')
-	flag = False;
+	outfile = open("./out/truncated_reads.fastq", 'w')
+	removed = 0
 	for i in range(len(seqs)):
 		for j in range(len(seqs[i])):
-			if not seqs[i][j]["header"]: # or not line_0.match(seqs[i][j]["header"]):
-				print seqs[i][j]
+			if j > len(seqs[i]) - 1:
+				break
+			if "header" not in seqs[i][j]:
+				removed += 1
+				outfile.write(as_read(seqs[i][j]))
 				seqs[i].remove(seqs[i][j])
-				flag = True
-			elif not check_correct_nucleotides(seqs[i][j]["seq"]):
-				print seqs[i][j]
+			elif "seq" not in seqs[i][j] or not check_correct_nucleotides(seqs[i][j]["seq"]):
+				removed += 1
+				outfile.write(as_read(seqs[i][j]))
 				seqs[i].remove(seqs[i][j])
-				flag = True
-			elif not line_2.match(seqs[i][j]["plus"]):
-				print seqs[i][j]
+			elif "plus" not in seqs[i][j] or not line_2.match(seqs[i][j]["plus"]):
+				removed += 1
+				outfile.write(as_read(seqs[i][j]))
 				seqs[i].remove(seqs[i][j])
-				flag = True
+			elif "qual" not in seqs[i][j]:
+				removed += 1
+				outfile.write(as_read(seqs[i][j]))
+				seqs[i].remove(seqs[i][j])
 			elif not len(seqs[i][j]["seq"]) == len(seqs[i][j]["qual"]):
-				print seqs[i][j]
+				removed += 1
+				outfile.write(as_read(seqs[i][j]))
 				seqs[i].remove(seqs[i][j])
-				flag = True	
-	return (flag);
+	return (removed);
 
 #################################
 # Run QC checks:
@@ -280,8 +352,9 @@ def run_checks(files, seqs):
 	for file in files:
 		if check_wrapped(file):
 			print ("%s included wrapped text. The file will automatically be unwrapped" % file)
-		if check_truncated(seqs):
-                	print ("%s was truncated in some way. Truncated entries will automatically be removed" % file)
+		i = check_truncated(seqs)
+		if i:
+                	print ("%s was truncated in some way. %i Truncated entries were automatically removed" % (file, i))
 
 
 #############################################
@@ -394,8 +467,10 @@ def main():
 	seqs = []
 	for file in files:
 		seqs.append(put_in_struct(file))
-	#Run QC checks
+	#Run QC checks. Truncated entries removed and files unwrapped.
 	run_checks(files, seqs)
+	#print summary table... Number of reads, quality encoding
+	#Summary_table(seqs)
 	#Run graphs and summary statistics
 	run_graphs(files, args.plot_num, seqs)
 
